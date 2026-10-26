@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Precificação 3D Pro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilização exclusiva para geração de PDF/Impressão */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                color: black !important;
+                padding: 20px;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(107, 114, 128, 0.8);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans transition-colors duration-200">
+
+    <!-- Header / Navbar Principal -->
+    <header class="bg-gray-800/90 backdrop-blur-md border-b border-gray-700 sticky top-0 z-30 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 bg-gradient-to-tr from-blue-600 to-cyan-500 text-white rounded-xl shadow-md">
+                        <i class="fa-solid fa-cube text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-extrabold text-white tracking-tight flex items-center gap-2">
+                            PrintCalc 3D <span class="text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pro</span>
+                        </h1>
+                        <p class="text-xs text-gray-400">Precificação Estratégica & Gestão de Custos</p>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação do Header -->
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <button onclick="exportBackupJSON()" title="Exportar Backup dos Dados" class="flex items-center space-x-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded-lg font-medium border border-gray-600 transition">
+                        <i class="fa-solid fa-download text-cyan-400"></i>
+                        <span class="hidden sm:inline">Backup</span>
+                    </button>
+                    <button onclick="document.getElementById('import-file-input').click()" title="Importar Backup" class="flex items-center space-x-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded-lg font-medium border border-gray-600 transition">
+                        <i class="fa-solid fa-upload text-amber-400"></i>
+                        <span class="hidden sm:inline">Restaurar</span>
+                    </button>
+                    <input type="file" id="import-file-input" class="hidden" accept=".json" onchange="importBackupJSON(event)">
+
+                    <button onclick="openSavedProjectsModal()" class="flex items-center space-x-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 px-3 py-2 rounded-lg font-medium border border-gray-600 transition">
+                        <i class="fa-solid fa-folder-open text-blue-400"></i>
+                        <span class="hidden sm:inline">Salvos</span>
+                    </button>
+                    <button onclick="saveCurrentProject()" class="flex items-center space-x-1.5 text-xs bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white px-3.5 py-2 rounded-lg font-semibold shadow-md transition">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span class="hidden sm:inline">Salvar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Layout Principal com Grid -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- COLUNA ESQUERDA: CAMPOS DE ENTRADA / FORMULÁRIO (7 Cols) -->
+            <div class="lg:col-span-7 space-y-6">
+                
+                <!-- 1. DADOS DO MODELO / PROJETO -->
+                <section class="bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-700">
+                    <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-700">
+                        <h2 class="text-sm font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-wider">
+                            <i class="fa-solid fa-cube"></i> 1. Dados do Projeto & Lote
+                        </h2>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Nome do Projeto / Cliente</label>
+                            <input type="text" id="project-name" value="Troféu Personalizado e Chaveiros" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Tempo de Impressão (por peça)</label>
+                            <div class="flex space-x-2">
+                                <div class="relative flex-1">
+                                    <input type="number" id="print-hours" min="0" value="4" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                    <span class="absolute right-2 top-2 text-xs text-gray-400">h</span>
+                                </div>
+                                <div class="relative flex-1">
+                                    <input type="number" id="print-minutes" min="0" max="59" value="30" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                    <span class="absolute right-2 top-2 text-xs text-gray-400">m</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Peso por Peça (Gramas)</label>
+                            <div class="relative">
+                                <input type="number" id="part-weight" min="0" value="120" step="1" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <span class="absolute right-3 top-2 text-xs text-gray-400">g</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Quantidade do Lote</label>
+                            <input type="number" id="batch-quantity" min="1" value="1" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Taxa de Perda / Falhas (%)</label>
+                            <div class="relative">
+                                <input type="number" id="failure-rate" min="0" max="100" value="10" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <span class="absolute right-3 top-2 text-xs text-gray-400">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. FILAMENTO & INSUMOS PRINCIPAIS -->
+                <section class="bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-700">
+                    <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-700">
+                        <h2 class="text-sm font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-wider">
+                            <i class="fa-solid fa-spool"></i> 2. Filamento / Matéria-Prima
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Tipo de Filamento</label>
+                            <select id="material-type" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <option value="PLA">PLA</option>
+                                <option value="PETG">PETG</option>
+                                <option value="ABS">ABS / ASA</option>
+                                <option value="TPU">TPU (Flexível)</option>
+                                <option value="Resina">Resina UV</option>
+                                <option value="Especial">Nylon / PC / CF</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Peso do Carretel (g)</label>
+                            <input type="number" id="spool-weight" min="1" value="1000" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Preço do Carretel (R$)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2 text-xs text-gray-400">R$</span>
+                                <input type="number" id="spool-price" min="0" step="0.01" value="95.00" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-8 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Custo / Grama</label>
+                            <div class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm font-semibold text-cyan-400 flex items-center h-[38px]">
+                                R$ <span id="cost-per-gram">0.095</span>/g
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. ENERGIA, MAQUINA & DEPRECIAÇÃO -->
+                <section class="bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-700">
+                    <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-700">
+                        <h2 class="text-sm font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-wider">
+                            <i class="fa-solid fa-bolt"></i> 3. Energia Elétrica & Amortização
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Potência da Impressora (Watts)</label>
+                            <input type="number" id="printer-power" min="0" value="180" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Custo do kWh (R$)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2 text-xs text-gray-400">R$</span>
+                                <input type="number" id="kwh-cost" min="0" step="0.01" value="0.95" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-8 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Valor da Impressora (R$)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2 text-xs text-gray-400">R$</span>
+                                <input type="number" id="printer-price" min="0" value="3500.00" step="100" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-8 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Vida Útil Estimada (Horas)</label>
+                            <input type="number" id="printer-lifespan" min="1" value="12000" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                            <span class="text-[10px] text-gray-400 mt-0.5 block">Amortização/hora: <span id="depreciation-per-hour" class="text-cyan-400 font-semibold">R$ 0.29</span>/h</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. INSUMOS ADICIONAIS & EMBALAGEM (LISTA DINÂMICA) -->
+                <section class="bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-700">
+                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-gray-700">
+                        <h2 class="text-sm font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-wider">
+                            <i class="fa-solid fa-boxes-packing"></i> 4. Insumos Extras, Acessórios & Embalagem
+                        </h2>
+                        <button type="button" onclick="addExtraItem()" class="text-xs bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition">
+                            <i class="fa-solid fa-plus-circle"></i> Adicionar Item
+                        </button>
+                    </div>
+
+                    <p class="text-[11px] text-gray-400 mb-3">Insira chaveiros, parafusos, ímãs, caixas de papelão, fitas, adesivos, tintas, etc.</p>
+
+                    <div id="extra-items-container" class="space-y-2">
+                        <!-- Itens carregados via JS -->
+                    </div>
+                </section>
+
+                <!-- 5. MÃO DE OBRA & CUSTOS FIXOS -->
+                <section class="bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-700">
+                    <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-700">
+                        <h2 class="text-sm font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-wider">
+                            <i class="fa-solid fa-user-gear"></i> 5. Mão de Obra & Custos Fixos
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Tempo Pós-Processamento (por peça)</label>
+                            <div class="relative">
+                                <input type="number" id="labor-minutes" min="0" value="25" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-3 pr-10 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <span class="absolute right-3 top-2 text-xs text-gray-400">min</span>
+                            </div>
+                            <span class="text-[10px] text-gray-400">Fatiamento, lixa, pintura, montagem</span>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Valor da Mão de Obra (R$/Hora)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2 text-xs text-gray-400">R$</span>
+                                <input type="number" id="labor-rate" min="0" value="30.00" step="1" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-8 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Custos Fixos Mensais (R$)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2 text-xs text-gray-400">R$</span>
+                                <input type="number" id="fixed-costs-monthly" min="0" value="450.00" step="10" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-8 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                            </div>
+                            <span class="text-[10px] text-gray-400">Aluguel, MEI, Software, Luz/Internet</span>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Horas Trabalhadas no Mês</label>
+                            <div class="relative">
+                                <input type="number" id="monthly-hours" min="1" value="160" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <span class="absolute right-3 top-2 text-xs text-gray-400">h</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6. COMERCIALIZAÇÃO, TAXAS & MARGEM DE LUCRO -->
+                <section class="bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-700">
+                    <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-700">
+                        <h2 class="text-sm font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-wider">
+                            <i class="fa-solid fa-chart-line"></i> 6. Comercialização, Taxas & Lucro
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Impostos (%)</label>
+                            <div class="relative">
+                                <input type="number" id="tax-rate" min="0" max="100" value="6" step="0.5" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <span class="absolute right-3 top-2 text-xs text-gray-400">%</span>
+                            </div>
+                            <span class="text-[10px] text-gray-400">Simples Nacional / MEI</span>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Taxa de Cartão / Gateway (%)</label>
+                            <div class="relative">
+                                <input type="number" id="card-rate" min="0" max="100" value="3.5" step="0.1" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <span class="absolute right-3 top-2 text-xs text-gray-400">%</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Comissão do Marketplace (%)</label>
+                            <div class="relative">
+                                <input type="number" id="marketplace-rate" min="0" max="100" value="18" step="0.5" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <span class="absolute right-3 top-2 text-xs text-gray-400">%</span>
+                            </div>
+                            <span class="text-[10px] text-gray-400">Shopee, Mercado Livre, Elo7</span>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Taxa Fixa do Marketplace (R$)</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-2 text-xs text-gray-400">R$</span>
+                                <input type="number" id="marketplace-fixed" min="0" value="4.00" step="0.50" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-8 pr-3 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                            </div>
+                            <span class="text-[10px] text-gray-400">Taxa por item vendido</span>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Margem de Lucro Desejada (%)</label>
+                            <div class="relative">
+                                <input type="number" id="profit-margin" min="0" value="80" step="5" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <span class="absolute right-3 top-2 text-xs text-gray-400">%</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-300 mb-1">Desconto Atacado / Lojista (%)</label>
+                            <div class="relative">
+                                <input type="number" id="wholesale-discount" min="0" max="90" value="25" step="5" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-3 pr-8 py-2 text-sm text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                <span class="absolute right-3 top-2 text-xs text-gray-400">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+
+            <!-- COLUNA DIREITA: RESULTADOS & DASHBOARD FIXO (5 Cols) -->
+            <div class="lg:col-span-5 space-y-6">
+                
+                <div class="sticky top-20 space-y-6">
+                    
+                    <!-- Card de Preço em Destaque -->
+                    <div class="bg-gradient-to-br from-gray-800 via-gray-800 to-gray-900 text-white rounded-xl p-6 shadow-xl border border-gray-700 relative overflow-hidden">
+                        <div class="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
+                            <i class="fa-solid fa-calculator text-9xl text-cyan-400"></i>
+                        </div>
+
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <span class="text-xs uppercase tracking-wider text-cyan-400 font-bold">Preço de Venda Varejo (Lote)</span>
+                                <h3 id="res-total-price" class="text-3xl font-extrabold text-white mt-1">R$ 0,00</h3>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs text-gray-400 block">Preço Unitário</span>
+                                <span id="res-unit-price" class="text-xl font-bold text-emerald-400">R$ 0,00</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 pt-4 border-t border-gray-700/80">
+                            <div class="bg-gray-900/80 p-3 rounded-lg border border-gray-700">
+                                <span class="text-xs text-gray-400 block">Lucro Líquido Real</span>
+                                <span id="res-net-profit" class="text-base font-bold text-emerald-400">R$ 0,00</span>
+                                <span id="res-profit-percent" class="text-[10px] text-gray-400 block">0% do valor final</span>
+                            </div>
+                            <div class="bg-gray-900/80 p-3 rounded-lg border border-gray-700">
+                                <span class="text-xs text-gray-400 block">Preço Lojista / Atacado</span>
+                                <span id="res-wholesale-price" class="text-base font-bold text-cyan-300">R$ 0,00</span>
+                                <span id="res-wholesale-label" class="text-[10px] text-gray-400 block">-25% p/ Revenda</span>
+                            </div>
+                        </div>
+
+                        <!-- Botões de Ação do Card -->
+                        <div class="mt-5 grid grid-cols-2 gap-3">
+                            <button onclick="openProposalModal()" class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white py-2.5 px-4 rounded-lg text-xs font-bold flex items-center justify-center gap-2 shadow-md transition">
+                                <i class="fa-solid fa-file-invoice-dollar"></i> Gerar Orçamento
+                            </button>
+                            <button onclick="window.print()" class="w-full bg-gray-700 hover:bg-gray-600 text-gray-200 py-2.5 px-4 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 border border-gray-600 transition">
+                                <i class="fa-solid fa-print"></i> Imprimir / PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Gráficos & Tabela de Decomposição de Custos -->
+                    <div class="bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-700 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xs font-bold text-gray-200 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-chart-pie text-cyan-400"></i> Decomposição dos Custos
+                            </h3>
+                            <span class="text-[10px] bg-gray-700 text-gray-300 px-2 py-0.5 rounded">Lote Total</span>
+                        </div>
+
+                        <!-- Gráfico Donut Chart.js -->
+                        <div class="h-48 relative">
+                            <canvas id="costChart"></canvas>
+                        </div>
+
+                        <!-- Indicadores Secundários -->
+                        <div class="grid grid-cols-2 gap-2 text-xs py-2 bg-gray-900/50 rounded-lg p-2.5 border border-gray-700">
+                            <div>
+                                <span class="text-[10px] text-gray-400 block">Custo Direto Produção</span>
+                                <span id="res-direct-cost" class="font-bold text-gray-200">R$ 0,00</span>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-gray-400 block">Ponto de Equilíbrio (Break-even)</span>
+                                <span id="res-breakeven" class="font-bold text-amber-400">0 un</span>
+                            </div>
+                        </div>
+
+                        <!-- Lista de Custos Detalhada -->
+                        <div class="space-y-1.5 text-xs divide-y divide-gray-700/50 pt-1">
+                            <div class="flex justify-between py-1">
+                                <span class="text-gray-400 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span> Filamento
+                                </span>
+                                <span id="bd-material" class="font-medium text-gray-200">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between py-1">
+                                <span class="text-gray-400 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span> Energia Elétrica
+                                </span>
+                                <span id="bd-energy" class="font-medium text-gray-200">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between py-1">
+                                <span class="text-gray-400 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block"></span> Amortização Máquina
+                                </span>
+                                <span id="bd-depreciation" class="font-medium text-gray-200">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between py-1">
+                                <span class="text-gray-400 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-teal-400 inline-block"></span> Insumos / Embalagens
+                                </span>
+                                <span id="bd-extras" class="font-medium text-gray-200">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between py-1">
+                                <span class="text-gray-400 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block"></span> Mão de Obra + Fixos
+                                </span>
+                                <span id="bd-labor" class="font-medium text-gray-200">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between py-1">
+                                <span class="text-gray-400 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span> Taxas & Impostos
+                                </span>
+                                <span id="bd-taxes" class="font-medium text-gray-200">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between py-2 font-bold text-xs bg-gray-900/80 px-2.5 rounded-lg mt-2 border border-gray-700">
+                                <span class="text-gray-300">Custo Total do Pedido</span>
+                                <span id="bd-total-cost" class="text-rose-400">R$ 0,00</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- MODAL: Gerar Proposta / Orçamento do Cliente -->
+    <div id="proposal-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-700">
+            
+            <div class="p-5 border-b border-gray-700 flex justify-between items-center no-print">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-file-pdf text-rose-500"></i> Orçamento Técnico para Cliente
+                </h3>
+                <button onclick="closeProposalModal()" class="text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Área de Impressão (Papel A4 / PDF) -->
+            <div id="print-area" class="p-8 space-y-6 bg-white text-gray-900 font-sans">
+                <!-- Cabeçalho -->
+                <div class="flex justify-between items-start border-b border-gray-200 pb-6">
+                    <div>
+                        <h2 class="text-2xl font-black text-gray-900 tracking-tight">ORÇAMENTO DE SERVIÇO 3D</h2>
+                        <p class="text-xs text-gray-500 mt-1">Data de emissão: <span id="pdf-date">--/--/----</span></p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-sm font-bold text-blue-600 block">ESTÚDIO DE IMPRESSÃO 3D</span>
+                        <span class="text-xs text-gray-500 block">Manufatura Aditiva & Prototipagem</span>
+                    </div>
+                </div>
+
+                <!-- Dados do Projeto -->
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-[10px] text-gray-400 uppercase font-bold block">Descrição do Item</span>
+                        <span id="pdf-project-name" class="text-sm font-bold text-gray-800">--</span>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-gray-400 uppercase font-bold block">Quantidade do Pedido</span>
+                        <span id="pdf-quantity" class="text-sm font-bold text-gray-800">--</span>
+                    </div>
+                </div>
+
+                <!-- Detalhes Técnicos -->
+                <div>
+                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Especificações do Pedido</h4>
+                    <table class="w-full text-xs text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-200 text-gray-500">
+                                <th class="py-2">Especificação</th>
+                                <th class="py-2">Detalhamento</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 text-gray-700">
+                            <tr>
+                                <td class="py-2 font-medium">Tecnologia e Material</td>
+                                <td id="pdf-material" class="py-2">FDM / PLA</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 font-medium">Tempo Est. Produção</td>
+                                <td id="pdf-time" class="py-2">-- h</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 font-medium">Acabamento e Insumos</td>
+                                <td class="py-2">Incluso montagem, limpeza de suportes e embalagem especial</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Tabela de Valores -->
+                <div class="border-t border-gray-200 pt-4 flex justify-end">
+                    <div class="w-64 space-y-2 text-right">
+                        <div class="flex justify-between text-xs text-gray-600">
+                            <span>Valor Unitário:</span>
+                            <span id="pdf-unit-price" class="font-semibold">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between text-base font-bold text-gray-900 border-t border-gray-200 pt-2">
+                            <span>Valor Total do Lote:</span>
+                            <span id="pdf-total-price" class="text-blue-600">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Termos -->
+                <div class="text-[10px] text-gray-400 border-t border-gray-200 pt-4 space-y-1">
+                    <p>* Proposta válida por 15 dias corridos a partir da data de emissão.</p>
+                    <p>* Prazo de fabricação iniciado imediatamente após aprovação do projeto e confirmação do pagamento.</p>
+                </div>
+            </div>
+
+            <!-- Rodapé do Modal -->
+            <div class="p-4 bg-gray-900 border-t border-gray-700 flex justify-end gap-3 no-print">
+                <button onclick="closeProposalModal()" class="px-4 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-700 rounded-lg transition">
+                    Fechar
+                </button>
+                <button onclick="window.print()" class="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center gap-2 shadow-md transition">
+                    <i class="fa-solid fa-print"></i> Imprimir / Salvar PDF
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODAL: Projetos Salvos (localStorage) -->
+    <div id="saved-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-gray-800 rounded-2xl max-w-xl w-full max-h-[80vh] overflow-hidden shadow-2xl border border-gray-700 flex flex-col">
+            <div class="p-5 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-folder-open text-amber-400"></i> Projetos Salvos Localmente
+                </h3>
+                <button onclick="closeSavedProjectsModal()" class="text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="saved-projects-list" class="p-5 overflow-y-auto space-y-3 flex-1">
+                <!-- Renderizado via JS -->
+            </div>
+
+            <div class="p-4 bg-gray-900 border-t border-gray-700 text-right">
+                <button onclick="closeSavedProjectsModal()" class="px-4 py-2 text-xs font-semibold text-gray-300 hover:bg-gray-700 rounded-lg transition">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LÓGICA JAVASCRIPT COMPLETA -->
+    <script>
+        // Insumos extras/acessórios e embalagens dinâmicos inicializados
+        let extraItems = [
+            { id: 1, name: 'Argola de Chaveiro + Corrente', qty: 1, unitCost: 0.45 },
+            { id: 2, name: 'Caixa de Papelão + Plástico Bolha', qty: 1, unitCost: 2.20 }
+        ];
+
+        let costChart = null;
+
+        // Executado ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            renderExtraItems();
+            initChart();
+            attachInputListeners();
+            calculatePricing();
+        });
+
+        // Adiciona listeners para atualizar os cálculos automaticamente em qualquer mudança de entrada
+        function attachInputListeners() {
+            const inputs = document.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                input.addEventListener('input', calculatePricing);
+                input.addEventListener('change', calculatePricing);
+            });
+        }
+
+        // Renderização dos Itens Extras Físicos
+        function renderExtraItems() {
+            const container = document.getElementById('extra-items-container');
+            container.innerHTML = '';
+
+            if (extraItems.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-500 italic py-2">Nenhum item adicional cadastrado.</p>';
+                return;
+            }
+
+            extraItems.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-2';
+                row.innerHTML = `
+                    <input type="text" placeholder="Nome do Insumo/Embalagem" value="${item.name}" onchange="updateExtraItem(${index}, 'name', this.value)" class="flex-1 bg-gray-900 border border-gray-600 rounded-lg px-2.5 py-1.5 text-xs text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                    <div class="relative w-20">
+                        <input type="number" min="1" value="${item.qty}" onchange="updateExtraItem(${index}, 'qty', this.value)" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-2 py-1.5 text-xs text-center text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none" title="Qtd por Peça">
+                    </div>
+                    <div class="relative w-28">
+                        <span class="absolute left-2 top-1.5 text-[10px] text-gray-400">R$</span>
+                        <input type="number" step="0.01" min="0" value="${item.unitCost.toFixed(2)}" onchange="updateExtraItem(${index}, 'unitCost', this.value)" class="w-full bg-gray-900 border border-gray-600 rounded-lg pl-6 pr-2 py-1.5 text-xs text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                    </div>
+                    <button type="button" onclick="removeExtraItem(${index})" class="text-rose-400 hover:text-rose-300 p-1.5 transition">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function addExtraItem() {
+            extraItems.push({ id: Date.now(), name: 'Novo Insumo', qty: 1, unitCost: 1.00 });
+            renderExtraItems();
+            calculatePricing();
+        }
+
+        function updateExtraItem(index, field, value) {
+            extraItems[index][field] = field === 'name' ? value : parseFloat(value) || 0;
+            calculatePricing();
+        }
+
+        function removeExtraItem(index) {
+            extraItems.splice(index, 1);
+            renderExtraItems();
+            calculatePricing();
+        }
+
+        // MOTOR DE CÁLCULO PRINCIPAL
+        function calculatePricing() {
+            // 1. Horas e Peças
+            const printHours = parseFloat(document.getElementById('print-hours').value) || 0;
+            const printMinutes = parseFloat(document.getElementById('print-minutes').value) || 0;
+            const totalPrintHoursPerUnit = printHours + (printMinutes / 60);
+
+            const partWeight = parseFloat(document.getElementById('part-weight').value) || 0;
+            const batchQty = Math.max(1, parseInt(document.getElementById('batch-quantity').value) || 1);
+            const failureRate = (parseFloat(document.getElementById('failure-rate').value) || 0) / 100;
+
+            // Total do Lote em Horas de Máquina
+            const totalBatchPrintHours = totalPrintHoursPerUnit * batchQty;
+
+            // 2. Material
+            const spoolPrice = parseFloat(document.getElementById('spool-price').value) || 0;
+            const spoolWeight = parseFloat(document.getElementById('spool-weight').value) || 1000;
+            const costPerGram = spoolPrice / spoolWeight;
+            document.getElementById('cost-per-gram').innerText = costPerGram.toFixed(3);
+
+            let totalMaterialCost = (partWeight * costPerGram) * batchQty;
+            totalMaterialCost *= (1 + failureRate); // Aplicação da margem de segurança contra perda
+
+            // 3. Energia e Amortização
+            const printerWatts = parseFloat(document.getElementById('printer-power').value) || 0;
+            const kwhCost = parseFloat(document.getElementById('kwh-cost').value) || 0;
+            const totalEnergyCost = (printerWatts / 1000) * totalBatchPrintHours * kwhCost;
+
+            const printerPrice = parseFloat(document.getElementById('printer-price').value) || 0;
+            const printerLifespan = parseFloat(document.getElementById('printer-lifespan').value) || 1;
+            const depreciationPerHour = printerPrice / printerLifespan;
+            document.getElementById('depreciation-per-hour').innerText = `R$ ${depreciationPerHour.toFixed(2)}`;
+            const totalDepreciationCost = depreciationPerHour * totalBatchPrintHours;
+
+            // 4. Insumos Adicionais & Embalagem (por peça x batch)
+            const unitExtrasCost = extraItems.reduce((acc, item) => acc + (item.qty * item.unitCost), 0);
+            const totalExtrasCost = unitExtrasCost * batchQty;
+
+            // 5. Mão de Obra e Rateio de Custos Fixos
+            const laborMinutes = parseFloat(document.getElementById('labor-minutes').value) || 0;
+            const laborRate = parseFloat(document.getElementById('labor-rate').value) || 0;
+            const totalLaborCost = ((laborMinutes / 60) * laborRate) * batchQty;
+
+            const fixedMonthly = parseFloat(document.getElementById('fixed-costs-monthly').value) || 0;
+            const monthlyHours = parseFloat(document.getElementById('monthly-hours').value) || 1;
+            const fixedCostPerHour = fixedMonthly / monthlyHours;
+            // Rateio do custo fixo baseado no tempo de uso da máquina + trabalho manual
+            const totalHoursDedicated = totalBatchPrintHours + ((laborMinutes / 60) * batchQty);
+            const totalFixedCostAllocated = fixedCostPerHour * totalHoursDedicated;
+
+            const totalLaborAndFixedCost = totalLaborCost + totalFixedCostAllocated;
+
+            // Custo Direto de Produção (Sem Mão de Obra e Fixos)
+            const directProductionCost = totalMaterialCost + totalEnergyCost + totalDepreciationCost + totalExtrasCost;
+
+            // Custo Total Operacional de Produção
+            const baseProductionCost = directProductionCost + totalLaborAndFixedCost;
+
+            // 6. Taxas, Impostos e Precificação Final
+            const profitMargin = (parseFloat(document.getElementById('profit-margin').value) || 0) / 100;
+            const taxRate = (parseFloat(document.getElementById('tax-rate').value) || 0) / 100;
+            const cardRate = (parseFloat(document.getElementById('card-rate').value) || 0) / 100;
+            const mktRate = (parseFloat(document.getElementById('marketplace-rate').value) || 0) / 100;
+            const mktFixedFeePerUnit = parseFloat(document.getElementById('marketplace-fixed').value) || 0;
+            const wholesaleDiscount = (parseFloat(document.getElementById('wholesale-discount').value) || 0) / 100;
+
+            const totalPercentageFees = taxRate + cardRate + mktRate;
+            const totalMktFixedFees = mktFixedFeePerUnit * batchQty;
+
+            // Cálculo do Preço Total do Lote usando Margem sobre Preço de Venda
+            // Formula: Preço = (CustoBase + FeeFixa) * (1 + Margem) / (1 - FeePorcentagem)
+            let totalPrice = 0;
+            if (1 - totalPercentageFees > 0) {
+                totalPrice = ((baseProductionCost + totalMktFixedFees) * (1 + profitMargin)) / (1 - totalPercentageFees);
+            } else {
+                totalPrice = (baseProductionCost + totalMktFixedFees) * (1 + profitMargin + totalPercentageFees);
+            }
+
+            const unitPrice = totalPrice / batchQty;
+            const totalTaxesAndFees = (totalPrice * totalPercentageFees) + totalMktFixedFees;
+            const netProfit = totalPrice - baseProductionCost - totalTaxesAndFees;
+            const profitPercent = totalPrice > 0 ? (netProfit / totalPrice) * 100 : 0;
+
+            // Preço no Atacado / Lojista
+            const wholesaleUnitPrice = unitPrice * (1 - wholesaleDiscount);
+            const wholesaleTotalPrice = totalPrice * (1 - wholesaleDiscount);
+
+            // Ponto de Equilíbrio (Break-even em unidades para cobrir custos de produção)
+            const contributionMarginPerUnit = unitPrice - (totalTaxesAndFees / batchQty) - (directProductionCost / batchQty);
+            const breakevenUnits = contributionMarginPerUnit > 0 ? Math.ceil(baseProductionCost / contributionMarginPerUnit) : batchQty;
+
+            // Exibir Resultados na Tela
+            document.getElementById('res-total-price').innerText = formatCurrency(totalPrice);
+            document.getElementById('res-unit-price').innerText = formatCurrency(unitPrice);
+            document.getElementById('res-net-profit').innerText = formatCurrency(netProfit);
+            document.getElementById('res-profit-percent').innerText = `${profitPercent.toFixed(1)}% do valor final`;
+            document.getElementById('res-wholesale-price').innerText = formatCurrency(wholesaleUnitPrice);
+            document.getElementById('res-wholesale-label').innerText = `-${(wholesaleDiscount * 100).toFixed(0)}% p/ Revenda`;
+            document.getElementById('res-direct-cost').innerText = formatCurrency(directProductionCost);
+            document.getElementById('res-breakeven').innerText = `${breakevenUnits} un`;
+
+            // Atualizar Detalhamento de Custos
+            document.getElementById('bd-material').innerText = formatCurrency(totalMaterialCost);
+            document.getElementById('bd-energy').innerText = formatCurrency(totalEnergyCost);
+            document.getElementById('bd-depreciation').innerText = formatCurrency(totalDepreciationCost);
+            document.getElementById('bd-extras').innerText = formatCurrency(totalExtrasCost);
+            document.getElementById('bd-labor').innerText = formatCurrency(totalLaborAndFixedCost);
+            document.getElementById('bd-taxes').innerText = formatCurrency(totalTaxesAndFees);
+            document.getElementById('bd-total-cost').innerText = formatCurrency(baseProductionCost);
+
+            // Atualizar Gráfico
+            updateChart([
+                totalMaterialCost,
+                totalEnergyCost,
+                totalDepreciationCost,
+                totalExtrasCost,
+                totalLaborAndFixedCost,
+                totalTaxesAndFees,
+                Math.max(0, netProfit)
+            ]);
+        }
+
+        // Formatação Monetária R$
+        function formatCurrency(val) {
+            return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        // Gráfico de Rosca (Chart.js)
+        function initChart() {
+            const ctx = document.getElementById('costChart').getContext('2d');
+            costChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Filamento', 'Energia', 'Amortização', 'Insumos/Embalagem', 'Mão de Obra/Fixos', 'Taxas/Impostos', 'Lucro Líquido'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            '#6366f1', // Indigo
+                            '#f59e0b', // Amber
+                            '#94a3b8', // Slate
+                            '#22c55e', // Emerald
+                            '#a855f7', // Purple
+                            '#f43f5e', // Rose
+                            '#06b6d4'  // Cyan
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${formatCurrency(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '72%'
+                }
+            });
+        }
+
+        function updateChart(dataValues) {
+            if (costChart) {
+                costChart.data.datasets[0].data = dataValues;
+                costChart.update();
+            }
+        }
+
+        // MODAL DE PROPOSTA DO CLIENTE
+        function openProposalModal() {
+            const name = document.getElementById('project-name').value || 'Projeto Sem Nome';
+            const qty = document.getElementById('batch-quantity').value || '1';
+            const material = document.getElementById('material-type').value;
+            const hours = document.getElementById('print-hours').value || '0';
+            const mins = document.getElementById('print-minutes').value || '0';
+            
+            const unitPrice = document.getElementById('res-unit-price').innerText;
+            const totalPrice = document.getElementById('res-total-price').innerText;
+
+            document.getElementById('pdf-project-name').innerText = name;
+            document.getElementById('pdf-quantity').innerText = `${qty} unidade(s)`;
+            document.getElementById('pdf-material').innerText = material;
+            document.getElementById('pdf-time').innerText = `${hours}h ${mins}m por peça`;
+            document.getElementById('pdf-unit-price').innerText = unitPrice;
+            document.getElementById('pdf-total-price').innerText = totalPrice;
+            
+            const now = new Date();
+            document.getElementById('pdf-date').innerText = now.toLocaleDateString('pt-BR');
+
+            document.getElementById('proposal-modal').classList.remove('hidden');
+        }
+
+        function closeProposalModal() {
+            document.getElementById('proposal-modal').classList.add('hidden');
+        }
+
+        // SALVAMENTO E HISTÓRICO LOCAL (localStorage)
+        function saveCurrentProject() {
+            const projectName = document.getElementById('project-name').value || 'Projeto Sem Nome';
+            
+            const projectData = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString('pt-BR'),
+                name: projectName,
+                hours: document.getElementById('print-hours').value,
+                minutes: document.getElementById('print-minutes').value,
+                weight: document.getElementById('part-weight').value,
+                qty: document.getElementById('batch-quantity').value,
+                failureRate: document.getElementById('failure-rate').value,
+                spoolPrice: document.getElementById('spool-price').value,
+                spoolWeight: document.getElementById('spool-weight').value,
+                material: document.getElementById('material-type').value,
+                extraItems: extraItems,
+                margin: document.getElementById('profit-margin').value,
+                totalPrice: document.getElementById('res-total-price').innerText
+            };
+
+            let saved = JSON.parse(localStorage.getItem('printcalc_pro_projects') || '[]');
+            saved.push(projectData);
+            localStorage.setItem('printcalc_pro_projects', JSON.stringify(saved));
+
+            alert('Projeto salvo com sucesso!');
+        }
+
+        function openSavedProjectsModal() {
+            const listContainer = document.getElementById('saved-projects-list');
+            const saved = JSON.parse(localStorage.getItem('printcalc_pro_projects') || '[]');
+
+            if (saved.length === 0) {
+                listContainer.innerHTML = '<p class="text-xs text-gray-400 text-center py-6">Nenhum orçamento salvo no histórico.</p>';
+            } else {
+                listContainer.innerHTML = saved.map((proj, idx) => `
+                    <div class="bg-gray-900 p-3 rounded-lg border border-gray-700 flex justify-between items-center text-xs">
+                        <div>
+                            <span class="font-bold text-gray-200 block">${proj.name}</span>
+                            <span class="text-gray-400">${proj.date} - ${proj.material} (${proj.qty}x)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-emerald-400">${proj.totalPrice}</span>
+                            <button onclick="loadProject(${idx})" class="bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded transition">Carregar</button>
+                            <button onclick="deleteProject(${idx})" class="text-rose-400 hover:text-rose-300 p-1"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('saved-modal').classList.remove('hidden');
+        }
+
+        function closeSavedProjectsModal() {
+            document.getElementById('saved-modal').classList.add('hidden');
+        }
+
+        function loadProject(index) {
+            const saved = JSON.parse(localStorage.getItem('printcalc_pro_projects') || '[]');
+            const proj = saved[index];
+            if (!proj) return;
+
+            document.getElementById('project-name').value = proj.name;
+            document.getElementById('print-hours').value = proj.hours;
+            document.getElementById('print-minutes').value = proj.minutes;
+            document.getElementById('part-weight').value = proj.weight;
+            document.getElementById('batch-quantity').value = proj.qty;
+            if (proj.failureRate) document.getElementById('failure-rate').value = proj.failureRate;
+            document.getElementById('spool-price').value = proj.spoolPrice;
+            if (proj.spoolWeight) document.getElementById('spool-weight').value = proj.spoolWeight;
+            document.getElementById('material-type').value = proj.material;
+            document.getElementById('profit-margin').value = proj.margin;
+
+            if (proj.extraItems) extraItems = proj.extraItems;
+
+            renderExtraItems();
+            calculatePricing();
+            closeSavedProjectsModal();
+        }
+
+        function deleteProject(index) {
+            let saved = JSON.parse(localStorage.getItem('printcalc_pro_projects') || '[]');
+            saved.splice(index, 1);
+            localStorage.setItem('printcalc_pro_projects', JSON.stringify(saved));
+            openSavedProjectsModal();
+        }
+
+        // EXPORTAR E IMPORTAR BACKUP EM ARQUIVO JSON
+        function exportBackupJSON() {
+            const saved = localStorage.getItem('printcalc_pro_projects') || '[]';
+            const blob = new Blob([saved], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup_orcamentos_3d_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importBackupJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (Array.isArray(parsed)) {
+                        localStorage.setItem('printcalc_pro_projects', JSON.stringify(parsed));
+                        alert('Backup restaurado com sucesso!');
+                        openSavedProjectsModal();
+                    } else {
+                        alert('Formato de arquivo JSON inválido.');
+                    }
+                } catch (err) {
+                    alert('Erro ao ler o arquivo de backup.');
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
